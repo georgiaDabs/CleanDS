@@ -1,0 +1,24 @@
+#BlueJ class context
+comment0.params=
+comment0.target=void\ changeStates()
+comment1.params=rating\ userId\ movieID
+comment1.target=java.lang.String\ sendRating(double,\ int,\ int)
+comment10.params=
+comment10.target=void\ initiateStubs()
+comment2.params=movieID
+comment2.target=java.lang.String\ queryMovie(int)
+comment3.params=movieName
+comment3.target=java.lang.String\ queryMovie(java.lang.String)
+comment4.params=movieId\ userId
+comment4.target=Result\ deleteReview(int,\ int)
+comment5.params=movieId\ userId\ newRating
+comment5.target=java.lang.String\ updateMovie(int,\ int,\ double)
+comment6.params=moviename\ userId
+comment6.target=Result\ deleteReview(java.lang.String,\ int)
+comment7.params=moviename\ userId\ newRating
+comment7.target=java.lang.String\ updateMovie(java.lang.String,\ int,\ double)
+comment8.params=name
+comment8.target=boolean\ isMovie(java.lang.String)
+comment9.params=id
+comment9.target=boolean\ isMovie(int)
+numComments=11
