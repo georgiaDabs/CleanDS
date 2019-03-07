@@ -66,14 +66,14 @@ public class ReplicaManager implements FrontEndInterface
 
     }
 
-    public int resetStubs() throws NoneOnlineException{
+    public ArrayList<Integer> resetStubs() throws NoneOnlineException{
         boolean online=false;
-        int numberOnline=0;
+        ArrayList<Integer> onlineServers=new ArrayList<Integer>();
         try{
             if(current.getState()==State.ACTIVE){
                 System.out.println("current is active");
                 online=true;
-                numberOnline++;
+                onlineServers.add(0);
             }else{
                 System.out.println("current is:"+current.getState());
             }
@@ -84,14 +84,17 @@ public class ReplicaManager implements FrontEndInterface
             if(backups.get(0).getState()==State.ACTIVE){
                 System.out.println("backup1 is active");
 
-                numberOnline++;
                 if(online==false){
                     System.out.println("swapping current with backup 1");
                     ServerInterface temp=current;
                     current=backups.get(0);
                     backups.set(0,temp);
                     System.out.println("Current is now:"+current.getName());
+                    onlineServers.add(0);
+                }else{
+                    onlineServers.add(1);
                 }
+
                 online=true;
             }else{
                 System.out.println("current is:"+current.getState());
@@ -103,13 +106,15 @@ public class ReplicaManager implements FrontEndInterface
             if(backups.get(1).getState()==State.ACTIVE){
                 System.out.println("backup1 is active");
 
-                numberOnline++;
                 if(online==false){
                     System.out.println("swapping current with backup 1");
                     ServerInterface temp=current;
                     current=backups.get(1);
                     backups.set(1,temp);
                     System.out.println("Current is now:"+current.getName());
+                    onlineServers.add(0);
+                }else{
+                    onlineServers.add(2);
                 }
                 online=true;
             }else{
@@ -118,7 +123,7 @@ public class ReplicaManager implements FrontEndInterface
         }catch(RemoteException e){
             System.out.println("current is unreachable");
         }
-        return numberOnline;
+        return onlineServers;
     }
 
     public void changeStates(){
@@ -138,7 +143,38 @@ public class ReplicaManager implements FrontEndInterface
             System.out.println("remote exception");
         }
     }
+    public String sendRating(double rating, int userId, String movieName) throws NoneOnlineException{
+        String response="";
+        try{
+            if(!current.ping()){
+                if(!backups.get(1).ping()||!backups.get(0).ping()){
+                    allOffline();
+                }
+            }
+        }catch(RemoteException a){
+            try{
+                if(!backups.get(0).ping()){
+                    if(!backups.get(1).ping()){
+                        allOffline();
+                    }
+                }
+            }catch(RemoteException b){
+                try{if(!backups.get(1).ping()){
+                        allOffline();
+                    }
+                }catch(RemoteException c){
+                    allOffline();
+                }
+            }
+        }
+        try{
+            response=current.add(currentCount,current.getMovieId(movieName),userId,rating);
+            currentCount++;
+        }catch(RemoteException e){
 
+        }
+        return response;
+    }
     public String sendRating(double rating,int userId, int movieID) throws NoneOnlineException{
         String response="";
         try{
@@ -175,7 +211,11 @@ public class ReplicaManager implements FrontEndInterface
         return response;
     }
 
-    public void allOffline(){}
+    public void allOffline() throws NoneOnlineException{
+        System.out.println("All servers offline or overloaded");
+        changeStates();
+        throw new NoneOnlineException();
+    }
 
     public String queryMovie(int movieID) throws NoneOnlineException{
         String response="";
@@ -211,8 +251,89 @@ public class ReplicaManager implements FrontEndInterface
         return response;
     }
 
-    public void gossip(){
+    public void gossip() throws NoneOnlineException{
+        try{
+            if(!current.ping()){
+                if(!backups.get(1).ping()||!backups.get(0).ping()){
+                    allOffline();
+                }
+            }
 
+        }catch(RemoteException a){
+            try{
+                if(!backups.get(0).ping()){
+                    if(!backups.get(1).ping()){
+                        allOffline();
+                    }
+                }
+            }catch(RemoteException b){
+                try{if(!backups.get(1).ping()){
+                        allOffline();
+                    }
+                }catch(RemoteException c){
+                    allOffline();
+                }
+            }
+        }
+        try{
+            //reset stubs so if any are online they will become current and get how many are online
+            ArrayList<Integer> onlineServers=resetStubs();
+            if(onlineServers.size()==1){
+
+            }else if(onlineServers.size()==2){
+                int upToDateNumber1=0;
+                int upToDateNumber2=1;
+                while(upToDateNumber1!=upToDateNumber2){
+                    
+                    ArrayList<ServerInterface> servers=new ArrayList<ServerInterface>();
+                    servers.add(current);
+                    servers.add(backups.get(onlineServers.get(1)-1));
+
+                    int mostUpToDate=mostUpToDate(servers);
+                    try{
+                        if(mostUpToDate==0){
+                            current.gossipWith(backups.get(onlineServers.get(1)-1).getName());
+                            backups.get(onlineServers.get(1)-1).updateTo(current.getCurrentCount());
+                        }else{
+                            backups.get(onlineServers.get(1)-1).gossipWith(current.getName());
+                            current.updateTo(backups.get(onlineServers.get(1)-1).getCurrentCount());
+                        }
+                        
+                    }catch(RemoteException e){
+                        System.out.println("Remote exception trying to get current to gossip with backup "+onlineServers.get(1));
+                    }
+                    try{
+                        upToDateNumber1=current.getCurrentCount();
+                        upToDateNumber2=backups.get(onlineServers.get(1)-1).getCurrentCount();
+                    }catch(RemoteException e){
+                        System.out.println("Remote Exception gettingcurrent counts SHOULDN'T HAPPEN");
+                    }
+                }
+            }else if(onlineServers.size()==3){
+                int upToDate1=0;
+                int upToDate2=1;
+                int upToDate3=2;
+                while(upToDate1!=currentCount&&upToDate2!=currentCount&&upToDate3!=currentCount){
+                    try{
+                        current.gossipWith(backups.get(0).getName());
+                        current.gossipWith(backups.get(1).getName());
+                    }catch(RemoteException e){
+                        System.out.println("RemoteException with gossiping when all 3 should be on SHOULDN'T HAPPEN");
+                    }
+                    try{
+                        upToDate1=current.getCurrentCount();
+                        upToDate2=backups.get(0).getCurrentCount();
+                        upToDate3=backups.get(1).getCurrentCount();
+                    }catch(RemoteException e){
+                        System.out.println("remote excpetion with getting new up to date numbers SHOULDN'T HAPPEN");
+                    }
+                }
+            }else if(onlineServers.isEmpty()){
+                allOffline();
+            }
+        }catch(NoneOnlineException e){
+            allOffline();
+        }
     }
 
     public String queryMovie(String movieName) throws NoneOnlineException{
@@ -240,15 +361,15 @@ public class ReplicaManager implements FrontEndInterface
             }
         }
         try{
-                response=current.queryMovie(current.getMovieId(movieName));
-            
+            response=current.queryMovie(current.getMovieId(movieName));
+
         }catch(RemoteException e){
 
         }
         return response;
     }
 
-    public Result deleteReview(int movieId, int userId){
+    public Result deleteReview(int movieId, int userId) throws NoneOnlineException{
         Result r=Result.UNCERTAIN;
         try{
             if(!current.ping()){
@@ -281,7 +402,7 @@ public class ReplicaManager implements FrontEndInterface
         return r;
     }
 
-    public String updateMovie(int movieId, int userId, double newRating){
+    public String updateMovie(int movieId, int userId, double newRating) throws NoneOnlineException{
         String response="";
         try{
             if(!current.ping()){
@@ -314,7 +435,7 @@ public class ReplicaManager implements FrontEndInterface
         return response;
     }
 
-    public Result deleteReview(String movieName, int userId){
+    public Result deleteReview(String movieName, int userId) throws NoneOnlineException{
         Result r=Result.UNCERTAIN;
         try{
             if(!current.ping()){
@@ -339,17 +460,17 @@ public class ReplicaManager implements FrontEndInterface
             }
         }
         try{
-            
-                r=current.delete(currentCount,current.getMovieId(movieName),userId);
-                currentCount++;
-            
+
+            r=current.delete(currentCount,current.getMovieId(movieName),userId);
+            currentCount++;
+
         }catch(RemoteException e){
             System.out.println("remoteException e");
         }
         return r;
     }
 
-    public String updateMovie(String moviename, int userId, double newRating){
+    public String updateMovie(String moviename, int userId, double newRating) throws NoneOnlineException{
         String response="";
         try{
             if(!current.ping()){
@@ -374,17 +495,17 @@ public class ReplicaManager implements FrontEndInterface
             }
         }
         try{
-            
-                response=current.updateMovie(currentCount,current.getMovieId(moviename),userId,newRating);
-                currentCount++;
-            
+
+            response=current.updateMovie(currentCount,current.getMovieId(moviename),userId,newRating);
+            currentCount++;
+
         }catch(RemoteException e){
             System.out.println("remoteException e");
         }
         return response;
     }
 
-    public boolean isMovie(String name){
+    public boolean isMovie(String name) throws NoneOnlineException{
         boolean is=false;
         try{
             if(!current.ping()){
@@ -415,8 +536,32 @@ public class ReplicaManager implements FrontEndInterface
         }
         return is;
     }
-
-    public boolean isMovie(int id){
+    public void ping() throws NoneOnlineException{
+        System.out.println("PING");
+        try{
+            if(!current.ping()){
+                if(!backups.get(1).ping()||!backups.get(0).ping()){
+                    allOffline();
+                }
+            }
+        }catch(RemoteException a){
+            try{
+                if(!backups.get(0).ping()){
+                    if(!backups.get(1).ping()){
+                        allOffline();
+                    }
+                }
+            }catch(RemoteException b){
+                try{if(!backups.get(1).ping()){
+                        allOffline();
+                    }
+                }catch(RemoteException c){
+                    allOffline();
+                }
+            }
+        }
+    }
+    public boolean isMovie(int id) throws NoneOnlineException{
         boolean is=false;
         try{
             if(!current.ping()){
@@ -453,12 +598,13 @@ public class ReplicaManager implements FrontEndInterface
         int best=-1;
         for(int i=0;i<servers.size();i++){
             try{
-            if(servers.get(i).getCurrentCount()>count){
-                best=i;
-            }}catch(RemoteException e){
+                if(servers.get(i).getCurrentCount()>count){
+                    best=i;
+                }}catch(RemoteException e){
                 System.out.println("RemoteException");
             }
         }
         return best;
     }
+    
 }

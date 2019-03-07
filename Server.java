@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.Set;
+import java.util.HashSet;
 import java.rmi.AlreadyBoundException;
 public class Server implements ServerInterface
 {
@@ -226,11 +227,11 @@ public class Server implements ServerInterface
     public String queryMovie(int id){
         Movie m=movies.get(id);
         String str="Movie Name: "+m.getName()+"\n";
-            str+="Movie ID: "+m.getID()+"\n";
-            str+="Average Rating: "+m.getAverage()+"\n";
-            str+="Reviews"+m.getAllReviews()+"\n";
-            System.out.println("Returning string about movie:"+id);
-            return str;
+        str+="Movie ID: "+m.getID()+"\n";
+        str+="Average Rating: "+m.getAverage()+"\n";
+        str+="Reviews"+m.getAllReviews()+"\n";
+        System.out.println("Returning string about movie:"+id);
+        return str;
     }
     //update straight to server
     public String updateMovie(int count,int movieId, int userId, double newRating){
@@ -335,11 +336,18 @@ public class Server implements ServerInterface
         return r;
     }
     //get Missing messages up to currentCount
-    public Set<Integer> getMissing(int i){
-        return queue.keySet();
+    public Set<Integer> getMissing(int number){
+        Set<Integer> missingMessages=new HashSet<Integer>();
+        
+        for(int i=correctUpto;i<number;i++){
+            if(!queue.containsKey(i)){
+                missingMessages.add(i);
+            }
+        }
+        return missingMessages;
     }
     //update to a certain point
-    public Result updateTo(int number){
+    public Result updateFully(){
         Result r=Result.SUCCESFUL;
         for(Integer i:queue.keySet()){
             if(!appliedMessages.contains(i)){
@@ -360,8 +368,23 @@ public class Server implements ServerInterface
         return r;
     }
 
-    public Result updateFully(){
+    public Result updateTo(int number){
         Result r=Result.SUCCESFUL;
+        for(Integer i:queue.keySet()){
+            if(i<number&&!appliedMessages.contains(i)){
+                switch(queue.get(i).getType()){
+                    case ADD:
+                    implementAdd(queue.get(i).getMovieID(),queue.get(i).getUserId(),queue.get(i).getRating());
+                    break;
+                    case DELETE:
+                    implementDelete(queue.get(i).getMovieID(),queue.get(i).getUserId());
+                    break;
+                    case UPDATE:
+                    implementUpdate(queue.get(i).getMovieID(),queue.get(i).getUserId(),queue.get(i).getRating());
+                    break;
+                }
+            }
+        }
         return r;
     }
 }
