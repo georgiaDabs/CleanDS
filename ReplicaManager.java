@@ -13,7 +13,7 @@ public class ReplicaManager implements FrontEndInterface
     public int currentCount;
     //constructor
     public ReplicaManager(){
-        currentCount=0;
+        currentCount=1;
     }
     //main
     public static void main(String[] args){
@@ -41,13 +41,13 @@ public class ReplicaManager implements FrontEndInterface
             e.printStackTrace();
         }
     }
-
+    Registry registry=null;
     public void initiateStubs(){
 
         try {
 
             // Get registry
-            Registry registry = LocateRegistry.getRegistry("mira2.dur.ac.uk", 37008);
+             registry = LocateRegistry.getRegistry("mira2.dur.ac.uk", 37008);
             current = (ServerInterface) registry.lookup("MovieRating1");
             System.out.println("Current server state:"+current.getState());
             ServerInterface replica2=(ServerInterface) registry.lookup("MovieRating2");
@@ -79,6 +79,7 @@ public class ReplicaManager implements FrontEndInterface
             }
         }catch(RemoteException e){
             System.out.println("current is unreachable");
+            
         }
         try{
             if(backups.get(0).getState()==State.ACTIVE){
@@ -97,10 +98,36 @@ public class ReplicaManager implements FrontEndInterface
 
                 online=true;
             }else{
-                System.out.println("current is:"+current.getState());
+                System.out.println("backup 1 is:"+current.getState());
             }
         }catch(RemoteException e){
-            System.out.println("current is unreachable");
+            
+            try{
+                ServerInterface replica2=(ServerInterface) registry.lookup("MovieRating1");
+                backups.set(0,replica2);
+                if(backups.get(0).getState()==State.ACTIVE){
+                System.out.println("backup1 is active");
+
+                if(online==false){
+                    System.out.println("swapping current with backup 1");
+                    ServerInterface temp=current;
+                    current=backups.get(0);
+                    backups.set(0,temp);
+                    System.out.println("Current is now:"+current.getName());
+                    onlineServers.add(0);
+                }else{
+                    onlineServers.add(1);
+                }
+
+                online=true;
+            }else{
+                System.out.println("backup 1 is:"+current.getState());
+            }
+            }catch(RemoteException a){
+                System.out.println("backup 1 is unreachable");
+            }catch(NotBoundException b){
+                System.out.println("backup 1 is unreachable");
+            }
         }
         try{
             if(backups.get(1).getState()==State.ACTIVE){
@@ -168,6 +195,8 @@ public class ReplicaManager implements FrontEndInterface
             }
         }
         try{
+            System.out.println("count:"+currentCount+" movieId:"+current.getMovieId(movieName)+" userid:"+userId+" rating"+rating);
+            
             response=current.add(currentCount,current.getMovieId(movieName),userId,rating);
             currentCount++;
         }catch(RemoteException e){
@@ -201,9 +230,11 @@ public class ReplicaManager implements FrontEndInterface
         }
 
         try{
-
+            System.out.println("count:"+currentCount+" movieId:"+movieID+" userid:"+userId+" rating"+rating);
+           
             response=current.add(currentCount,movieID,userId,rating);
             currentCount++;
+            System.out.println(response);
         }catch(RemoteException e){
             System.out.println("current offline");
 
@@ -242,8 +273,10 @@ public class ReplicaManager implements FrontEndInterface
             }
         }
         try{
+            System.out.println("Starting gossip");
             gossip();
-            String query=current.queryMovie(movieID);
+            response=current.queryMovie(movieID);
+            
         }catch(RemoteException e){
             System.out.println("current offline");
 
@@ -277,7 +310,9 @@ public class ReplicaManager implements FrontEndInterface
         }
         try{
             //reset stubs so if any are online they will become current and get how many are online
+            
             ArrayList<Integer> onlineServers=resetStubs();
+            System.out.println("Number of online sers:"+onlineServers.size());
             if(onlineServers.size()==1){
 
             }else if(onlineServers.size()==2){
@@ -292,6 +327,7 @@ public class ReplicaManager implements FrontEndInterface
                     int mostUpToDate=mostUpToDate(servers);
                     try{
                         if(mostUpToDate==0){
+                            
                             current.gossipWith(backups.get(onlineServers.get(1)-1).getName());
                             backups.get(onlineServers.get(1)-1).updateTo(current.getCurrentCount());
                         }else{
@@ -313,8 +349,10 @@ public class ReplicaManager implements FrontEndInterface
                 int upToDate1=0;
                 int upToDate2=1;
                 int upToDate3=2;
-                while(upToDate1!=currentCount&&upToDate2!=currentCount&&upToDate3!=currentCount){
+                while((upToDate1!=(currentCount-1))||(upToDate2!=(currentCount-1))||(upToDate3!=(currentCount-1))){
+                    
                     try{
+                        
                         current.gossipWith(backups.get(0).getName());
                         current.gossipWith(backups.get(1).getName());
                     }catch(RemoteException e){
@@ -324,6 +362,7 @@ public class ReplicaManager implements FrontEndInterface
                         upToDate1=current.getCurrentCount();
                         upToDate2=backups.get(0).getCurrentCount();
                         upToDate3=backups.get(1).getCurrentCount();
+                        System.out.println("count"+currentCount+"current:"+upToDate1+" b1"+upToDate2+" b3"+upToDate3);
                     }catch(RemoteException e){
                         System.out.println("remote excpetion with getting new up to date numbers SHOULDN'T HAPPEN");
                     }
@@ -334,6 +373,7 @@ public class ReplicaManager implements FrontEndInterface
         }catch(NoneOnlineException e){
             allOffline();
         }
+        changeStates();
     }
 
     public String queryMovie(String movieName) throws NoneOnlineException{
@@ -361,6 +401,8 @@ public class ReplicaManager implements FrontEndInterface
             }
         }
         try{
+            System.out.println("Starting gossip in string");
+            gossip();
             response=current.queryMovie(current.getMovieId(movieName));
 
         }catch(RemoteException e){
@@ -370,6 +412,7 @@ public class ReplicaManager implements FrontEndInterface
     }
 
     public Result deleteReview(int movieId, int userId) throws NoneOnlineException{
+        System.out.println("delete called");
         Result r=Result.UNCERTAIN;
         try{
             if(!current.ping()){
@@ -427,6 +470,7 @@ public class ReplicaManager implements FrontEndInterface
             }
         }
         try{
+            
             response=current.updateMovie(currentCount,movieId,userId,newRating);
             currentCount++;
         }catch(RemoteException e){
@@ -460,7 +504,7 @@ public class ReplicaManager implements FrontEndInterface
             }
         }
         try{
-
+            
             r=current.delete(currentCount,current.getMovieId(movieName),userId);
             currentCount++;
 

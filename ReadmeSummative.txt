@@ -1,0 +1,6 @@
+To start the RMI registry for the Replica servers run "rmiregistry 37008" on the command line. To start the Replicas run "javac ServrInterface.java","javac Server.java","javac BackupServer1.java", "javac BackupServer2.java" to compile then "java Server", "java BackupServer2" and "java BackupServer1".
+To start the front end server run "javac FrontEndInterface.java", "javac ReplicaManager.java" then "java Replica Manager".
+To start the client run "javac Client.java" then "java Client"
+This system uses the lazy gossip architecture as the "Server" replica as its main server and applies updates to this, then when there is a query it gossips with other avaiable servers to bring them up to date. If this server is overloaded or offline then the front end finds another server and makes this the current server.
+if all 3 servers aren't avaiable then the system allows the client to choose whether they want to wait for one to come back online or wait.
+The servers stay up to date by having a "queue" of all the updates since all 3 servers where gossiping together. this queue is a hashmap with a number and a message. the server is only updated to the point in the queue where there is no breaks so that all updates are in order.

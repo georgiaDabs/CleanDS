@@ -121,7 +121,7 @@ public class Client
                     }
                 }else{
                     sc.next();
-                    System.out.println("Not a double try again");
+                    System.out.println("Not an integer try again");
                 }
             }
             if(response==1){
@@ -157,7 +157,11 @@ public class Client
                     while(!inputCorrect){
                         if(sc.hasNextDouble()){
                             newRating=sc.nextDouble();
-                            inputCorrect=true;
+                            if(newRating>0&&newRating<=5.0){
+                                inputCorrect=true;
+                            }else{
+                                System.out.println("not in range of 0 to 5 try again");
+                            }
                         }else{
                             sc.next();
                             System.out.println("Not a double try again");
@@ -165,6 +169,7 @@ public class Client
                     }
                     String serverResponse=stub.updateMovie(movieID, userID, newRating);
                     System.out.println(serverResponse);
+
                 }catch(RemoteException r){
                     System.out.println("Remote Exception in update block");
                     r.printStackTrace();
@@ -198,6 +203,7 @@ public class Client
                         }
                     }
                     String serverResponse=stub.updateMovie(movieName,userId, newRating);
+                    System.out.println(serverResponse);
                 }catch(RemoteException r){
                     System.out.println("Remote exception in update block");
                     r.printStackTrace();
@@ -225,8 +231,9 @@ public class Client
                     if(response>0&&response<=3){
                         inputCorrect=true;
                     }else{
-                        sc.next();
+
                         System.out.println("not a 1, 2 or 3 try again");
+                        sc.next();
                     }
                 }else{
                     System.out.println("not an integer try again");
@@ -251,16 +258,17 @@ public class Client
                 System.out.println("Enter ID:");
                 int input=0;
                 inputCorrect=false;
-                while(inputCorrect){
+                while(!inputCorrect){
                     if(sc.hasNextInt()){
                         input=sc.nextInt();
-                        inputCorrect=false;
+                        inputCorrect=true;
                     }else{
                         sc.next();
                         System.out.println("Not an integer try again");
                     }
                 }
                 try{
+                    System.out.println("sending query to movie with id:"+input);
                     String serverResponse=stub.queryMovie(input);
                     System.out.println(serverResponse);
                 }catch(RemoteException e){
@@ -274,9 +282,10 @@ public class Client
 
     public static void deleteRating() throws NoneOnlineException{
         Scanner sc=new Scanner(System.in);
-        boolean inputCorrect=false;
+
         boolean current=true;
         while(current){
+            boolean inputCorrect=false;
             System.out.println("How wil you choose the film rating to delete?");
             System.out.println("1.by ID");
             System.out.println("2.by name");
@@ -289,8 +298,8 @@ public class Client
                         inputCorrect=true;
                     }else{
                         System.out.println("Not a 1, 2 or 3 try again");
-                        sc.next();
                     }
+
                 }else{
                     System.out.println("not a 1, 2 or 3 try again");
                     sc.next();
@@ -305,7 +314,6 @@ public class Client
                         id=sc.nextInt();
                         inputCorrect=true;
                     }else{
-                        sc.next();
                         System.out.println("not an integer try again");
                     }
                 }
@@ -338,7 +346,7 @@ public class Client
             }else if(response==2){
                 System.out.println("Enter name:");
 
-                String name=sc.nextLine();
+                String name=sc.next();
                 try{
                     if(stub.isMovie(name)){
                         System.out.println("which users review would you like to delete?");
@@ -353,7 +361,7 @@ public class Client
                                 System.out.println("Not an integer try again");
                             }
                         }
-                        stub.deleteReview(name,userId);
+                        System.out.println(stub.deleteReview(name,userId));
                     }
                 }catch(RemoteException a){
                     System.out.println("remote exception getting id");
@@ -365,8 +373,8 @@ public class Client
     public static void sendRating() throws NoneOnlineException{
         Scanner sc=new Scanner(System.in);
         boolean current=true;
-        boolean inputCorrect=false;
         while(current){
+            boolean inputCorrect=false;
             System.out.println("How will you choose the film to rate");
             System.out.println("1. By Movie ID");
             System.out.println("2. By Movie Name");
@@ -418,7 +426,10 @@ public class Client
                     while(!inputCorrect){
                         if(sc.hasNextDouble()){
                             rating=sc.nextDouble();
-                            inputCorrect=true;
+                            if(rating>0&&rating<=5.0){
+                                inputCorrect=true;}else{
+                                System.out.println("not in range of 0 to 5 try again");
+                            }
                         }else{
                             System.out.println("Not a double try again");
                             sc.next();
@@ -451,8 +462,10 @@ public class Client
                         double rating=0.0;
                         while(!inputCorrect){
                             if(sc.hasNextDouble()){
+                               
                                 rating=sc.nextDouble();
-                                inputCorrect=true;
+                                if(rating>0&&rating<=5.0){
+                                inputCorrect=true;}else{System.out.println("not in range 0 to 5 try again");}
                             }else{
                                 System.out.println("Not a double try again");
                                 sc.next();
@@ -468,5 +481,5 @@ public class Client
 
         }
     }
-    
+
 }

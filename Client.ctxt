@@ -1,13 +1,12 @@
 #BlueJ class context
-comment0.target=Client
-comment1.params=args
-comment1.target=void\ main(java.lang.String[])
+comment0.params=args
+comment0.target=void\ main(java.lang.String[])
+comment1.params=
+comment1.target=void\ updateRatings()
 comment2.params=
-comment2.target=void\ updateRatings()
+comment2.target=void\ getRating()
 comment3.params=
-comment3.target=void\ getRating()
+comment3.target=void\ deleteRating()
 comment4.params=
-comment4.target=void\ deleteRating()
-comment5.params=
-comment5.target=void\ sendRating()
-numComments=6
+comment4.target=void\ sendRating()
+numComments=5

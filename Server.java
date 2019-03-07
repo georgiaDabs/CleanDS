@@ -26,9 +26,9 @@ public class Server implements ServerInterface
         try{
             Server obj=new Server("MovieRating1",0.01,0.05);
             ServerInterface stub = (ServerInterface) UnicastRemoteObject.exportObject(obj, 0);
-
+            
             // Get registry
-            Registry registry = LocateRegistry.createRegistry(37008);
+            Registry registry = LocateRegistry.getRegistry("mira2.dur.ac.uk",37008);
             try{
                 registry.bind("MovieRating1",stub);
             }catch(AlreadyBoundException a){
@@ -52,7 +52,7 @@ public class Server implements ServerInterface
         initiateMovies();
         queue=new HashMap<Integer, Message>();
         initiateRatings();
-
+        appliedMessages=new HashSet<Integer>();
         System.out.println("Number of movies on this server:"+movies.size());
     }
 
@@ -66,7 +66,8 @@ public class Server implements ServerInterface
     }
     //getters
     public int getCurrentCount(){
-        return currentCount;
+        
+        return queue.size();
     }
 
     public String getName(){
@@ -80,12 +81,13 @@ public class Server implements ServerInterface
     public void changeState(){
         if(Math.random()<offlineProb){
             this.state=State.OFFLINE;
-
+            System.out.println("Server offline");
         }else if(Math.random()<overLoadProb){
             this.state=State.OVERLOADED;
-
+            System.out.println("Server overloaded");
         }else{
             this.state=State.ACTIVE;
+            System.out.println("Server active");
         }
 
     }
@@ -231,6 +233,7 @@ public class Server implements ServerInterface
         str+="Average Rating: "+m.getAverage()+"\n";
         str+="Reviews"+m.getAllReviews()+"\n";
         System.out.println("Returning string about movie:"+id);
+        //System.out.println(str);
         return str;
     }
     //update straight to server
@@ -281,17 +284,20 @@ public class Server implements ServerInterface
     public Result implementDelete(int movieId,int userId){
         System.out.println("deleting user:"+userId+" review of movie:"+movieId+"from this server");
         Result r=Result.FAILED;
-
         r=movies.get(movieId).deleteReview(userId);
 
         return r;
     }
     //add straight to server
     public String add(int count, int movieId, int userId, double rating){
+        System.out.println("add called");
+        System.out.println("count:"+count+" correctUpTo"+correctUpto);
         if(count==(correctUpto+1)){
             correctUpto=count;
         }
+        System.out.println("applied msgs:"+appliedMessages);
         appliedMessages.add(count);
+        System.out.println("trying to call imp Add with mId"+movieId+" user"+userId+" double"+rating);
         String response=implementAdd(movieId, userId, rating);
         Message msg=new Message(movies.get(movieId),rating,userId, MessageType.ADD);
         queue.put(count, msg);
@@ -300,12 +306,15 @@ public class Server implements ServerInterface
     }
 
     public String implementAdd(int movieId, int userId, double rating){
+        System.out.println("implement add called");
         String response="Adding rating:"+rating+" to movie:"+movieId+" for user:"+userId;
+        //System.out.println(response);
         movies.get(movieId).addRating(userId, rating);
         return response;
     }
     //get message during gossip
     public Result recieveMessage(int count, Message msg){
+        System.out.println("recieving msg:"+count);
         Result r=Result.FAILED;
         if(!queue.containsKey(count)){
             queue.put(count,msg);
@@ -314,11 +323,14 @@ public class Server implements ServerInterface
     }
     //gossip with 
     public Result gossipWith(String otherServerName){
+        System.out.println("trying to gossip with:"+otherServerName);
         Result r=Result.UNCERTAIN;
         try{
             Registry registry = LocateRegistry.getRegistry("mira2.dur.ac.uk", 37008);
             ServerInterface other=(ServerInterface) registry.lookup(otherServerName);
+            System.out.println("this server is correct up to"+correctUpto);
             Set<Integer> othersMissing=other.getMissing(correctUpto);
+            System.out.println(otherServerName+" is missing "+othersMissing);
             for(Integer i:othersMissing){
                 if(queue.containsKey(i)){
                     other.recieveMessage(i,queue.get(i));
@@ -339,7 +351,7 @@ public class Server implements ServerInterface
     public Set<Integer> getMissing(int number){
         Set<Integer> missingMessages=new HashSet<Integer>();
         
-        for(int i=correctUpto;i<number;i++){
+        for(int i=(correctUpto+1);i<=number;i++){
             if(!queue.containsKey(i)){
                 missingMessages.add(i);
             }
@@ -348,6 +360,7 @@ public class Server implements ServerInterface
     }
     //update to a certain point
     public Result updateFully(){
+        System.out.println("updating fully");
         Result r=Result.SUCCESFUL;
         for(Integer i:queue.keySet()){
             if(!appliedMessages.contains(i)){
@@ -362,9 +375,12 @@ public class Server implements ServerInterface
                     implementUpdate(queue.get(i).getMovieID(),queue.get(i).getUserId(),queue.get(i).getRating());
                     break;
                 }
-
+                
             }
+            
         }
+        queue=new HashMap<Integer,Message>();
+        currentCount=0;
         return r;
     }
 
